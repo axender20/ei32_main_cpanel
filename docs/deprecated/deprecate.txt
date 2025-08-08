@@ -1,0 +1,72 @@
+#include <WiFi.h>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
+
+const char* ssid = "INNOVA OCCIDENTE S.A";
+const char* password = "Innova2025";
+
+// URL HTTPS de Supabase Storage
+const char* firmwareURL = "https://gayaluhznhhewaamfcoy.supabase.co/storage/v1/object/public/actualizacion//firmware.bin";
+
+// Pin del botón
+const int buttonPin = 4;  // Ajusta según tu circuito
+
+// Tiempo que el botón debe mantenerse presionado (milisegundos)
+const unsigned long holdTime = 3000;
+
+void actualizarFirmware();
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  Serial.println("Init code");
+  pinMode(buttonPin, INPUT_PULLUP);  // Botón activo en LOW
+
+  WiFi.begin(ssid, password);
+  Serial.print("Conectando a WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" ¡Conectado!");
+}
+
+void loop() {
+  if (digitalRead(buttonPin) == LOW) {
+    unsigned long startPress = millis();
+    while (digitalRead(buttonPin) == LOW) {
+      if (millis() - startPress >= holdTime) {
+        Serial.println("\n🟡 Botón presionado por 3 segundos. Iniciando actualización...");
+        actualizarFirmware();
+        break;
+      }
+      delay(100);
+    }
+  }
+
+  delay(200);
+}
+
+void actualizarFirmware() {
+  WiFiClientSecure client;
+  client.setInsecure();  // ⚠️ Desactiva la validación del certificado (solo para pruebas)
+
+  t_httpUpdate_return ret = httpUpdate.update(client, firmwareURL);
+
+  switch (ret) {
+  case HTTP_UPDATE_FAILED:
+    Serial.printf("❌ Actualización fallida. Código: %d, error: %s\n",
+      httpUpdate.getLastError(),
+      httpUpdate.getLastErrorString().c_str());
+    break;
+
+  case HTTP_UPDATE_NO_UPDATES:
+    Serial.println("ℹ️ No hay actualizaciones disponibles.");
+    break;
+
+  case HTTP_UPDATE_OK:
+    Serial.println("✅ Actualización completada. Reiniciando...");
+    break;
+  }
+}
