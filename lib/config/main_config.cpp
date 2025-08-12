@@ -44,8 +44,10 @@ static const uint8_t validation_byte = 0x3E;
 
 enum map_memory : uint8_t {
   xmp_validation = 0,
+  xmp_new_config = 1,
   xmp_ssid = 10,
-  xmp_pass = 110
+  xmp_pass = 110,
+  
 };
 
 void load_config() {
@@ -56,6 +58,7 @@ void load_config() {
     ESP_LOGI(TAG, "Re: write initial config");
     //? Error re-escribir informacion inicial.
     EEPROM.writeByte(xmp_validation, validation_byte);
+    EEPROM.writeByte(xmp_new_config, validation_byte);
     EEPROM.writeString(xmp_ssid, String(default_ssid));
     EEPROM.writeString(xmp_pass, String(default_pass));
     EEPROM.commit();
@@ -63,6 +66,11 @@ void load_config() {
     ESP_LOGI(TAG, "Reboot required...");
     delay(1000);
     ESP.restart();
+  }
+
+  uint8_t new_config = EEPROM.readByte(xmp_new_config);
+  if(new_config == validation_byte){
+    //Create new config
   }
 
   String i_pass = EEPROM.readString(xmp_pass);

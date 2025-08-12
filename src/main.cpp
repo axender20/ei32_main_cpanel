@@ -1,22 +1,10 @@
-#define CORE_DEBUG_LEVEL ARDUHAL_LOG_LEVEL_INFO
-
 #include "Arduino.h"
+#include "WiFiManager.h" // https://github.com/tzapu/WiFiManager
 #include "main_config.h"
-#include "handler_wifi.h"
-#include "wifi_status.h"
-#include "trigger_update.h"
-
-static const char* TAG = "main";
 
 void setup() {
-  delay(1000);
-  ESP_LOGI(TAG, "Init code renew");
-  load_config();
-  init_thr_wifi();
-
-  xTaskCreate(thread_wifi, "tsk_w", 8192, NULL, 1, NULL);
+  load_config();  
 }
 
 void loop() {
 }
-
