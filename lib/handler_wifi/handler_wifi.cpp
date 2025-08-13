@@ -18,6 +18,9 @@ void init_thr_wifi() {
   //? main config pre-loaded 
   ESP_LOGI(TAG, "Init thread");
 
+  //? Force mode STA (Client)
+  WiFi.mode(WIFI_STA);
+
   //! Try first connection
   ESP_LOGI(TAG, "Try connect to: %s", cnfg.get_ssid());
   WiFi.begin(cnfg.get_ssid(), cnfg.get_pass());

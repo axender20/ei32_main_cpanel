@@ -18,4 +18,6 @@ public:
 extern Config cnfg;
 void load_config();
 void update_config(Config _cfg);
+
+void generate_new_config();
 #endif

@@ -1,5 +1,6 @@
 #define CORE_DEBUG_LEVEL ARDUHAL_LOG_LEVEL_INFO
 #include "main_config.h"
+#include "new_network_config.h"
 
 bool is_all_spaces(const char* str) {
   while (*str) {
@@ -44,10 +45,9 @@ static const uint8_t validation_byte = 0x3E;
 
 enum map_memory : uint8_t {
   xmp_validation = 0,
-  xmp_new_config = 1,
+  xmp_enter_nc = 1,
   xmp_ssid = 10,
   xmp_pass = 110,
-  
 };
 
 void load_config() {
@@ -58,7 +58,7 @@ void load_config() {
     ESP_LOGI(TAG, "Re: write initial config");
     //? Error re-escribir informacion inicial.
     EEPROM.writeByte(xmp_validation, validation_byte);
-    EEPROM.writeByte(xmp_new_config, validation_byte);
+    EEPROM.writeByte(xmp_enter_nc, 0);
     EEPROM.writeString(xmp_ssid, String(default_ssid));
     EEPROM.writeString(xmp_pass, String(default_pass));
     EEPROM.commit();
@@ -68,9 +68,21 @@ void load_config() {
     ESP.restart();
   }
 
-  uint8_t new_config = EEPROM.readByte(xmp_new_config);
-  if(new_config == validation_byte){
-    //Create new config
+  uint8_t new_config = EEPROM.readByte(xmp_enter_nc);
+
+  //? Only debug
+  bool force_nconfig = false;
+  if (new_config == validation_byte || force_nconfig) {
+    ESP_LOGI(TAG, "Enter n-config");
+
+    //? Se logro obtener la nueva configuracion
+    if (enter_nconfig()) {
+      cnfg.update_parametres(get_wm_ssid().c_str(), get_wm_pass().c_str());
+      update_config(cnfg);
+      ESP_LOGI(TAG, "Update config, resart...");
+      delay(1000);
+      ESP.restart();
+    }
   }
 
   String i_pass = EEPROM.readString(xmp_pass);
@@ -78,11 +90,13 @@ void load_config() {
 
   cnfg.update_parametres(i_ssid.c_str(), i_pass.c_str());
   ESP_LOGI(TAG, "Configuration loaded successfully");
+  EEPROM.end();
 }
 
 void update_config(Config _cfg) {
   //> Only update config, external Reboot required
   ESP_LOGI(TAG, "Write new config");
+  EEPROM.begin(memory_size);
 
   ESP_LOGI(TAG, "Clear data");
   uint8_t clear_value = 0xff;
@@ -91,9 +105,19 @@ void update_config(Config _cfg) {
   }
 
   EEPROM.writeByte(xmp_validation, validation_byte);
+  EEPROM.writeByte(xmp_enter_nc, 0);
   EEPROM.writeString(xmp_ssid, String(_cfg.get_ssid()));
   EEPROM.writeString(xmp_pass, String(_cfg.get_pass()));
   EEPROM.commit();
-
+  EEPROM.end();
   ESP_LOGI(TAG, "New data writed (a reboot is still necessary)");
+}
+
+void generate_new_config() {
+  EEPROM.begin(memory_size);
+  EEPROM.writeByte(xmp_enter_nc, validation_byte);
+  EEPROM.commit();
+  EEPROM.end();
+  ESP_LOGI(TAG, "Generate new config, resart...");
+  ESP.restart();
 }

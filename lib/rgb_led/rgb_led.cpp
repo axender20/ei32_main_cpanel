@@ -18,8 +18,8 @@ void RGBLed::off() {
 
 void RGBLed::switch_color(uint8_t r, uint8_t g, uint8_t b) {
   _wait();
-  _r = r;
-  _g = g;
+  _r = g;
+  _g = r;
   _b = b;
   _strip->setPixelColor(_index, _r, _g, _b);
   _strip->show();
@@ -40,5 +40,6 @@ RGBLed wrgb_1(&m_strip, 0);
 void init_rgb_strip(uint8_t bigbrightness) {
   m_strip.begin();
   m_strip.setBrightness(bigbrightness);
+
   wrgb_1.off();
 }
