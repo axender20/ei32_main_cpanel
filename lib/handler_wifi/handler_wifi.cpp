@@ -5,6 +5,7 @@
 #include "Arduino.h"
 #include "WiFi.h"
 #include "main_config.h"
+#include "rgb_led.h"
 
 static const char* TAG = "WIFI";
 
@@ -29,14 +30,22 @@ void init_thr_wifi() {
   ulong tick_timeout = 5000u;
 
   uint8_t wlst = WL_DISCONNECTED;
-  while ((millis() - cnt_timeout < tick_timeout) || (wlst != WL_CONNECTED)) {
+  while (wlst != WL_CONNECTED) {
     wlst = WiFi.status();
+
+    //> timeout
+    if ((millis() - cnt_timeout >= tick_timeout)) break;
     delay(100);
   }
 
   const char* str_wls = (wlst == WL_CONNECTED) ? "Connected correctly" : "Could not connect";
   ESP_LOGI(TAG, "%s", str_wls);
   current_wl_status = wlst;
+
+  if (wlst == WL_CONNECTED) wrgb_1.switch_color(0, 255, 0);
+  else wrgb_1.switch_color(255, 0, 0);
+  delay(200);
+  wrgb_1.off();
 }
 
 void thread_wifi(void* parametres) {

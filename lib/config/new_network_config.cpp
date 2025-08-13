@@ -6,6 +6,7 @@
 #include "WiFiManager.h"
 #include "button_hold.h"
 #include "EEPROM.h"
+#include "ei32_cpanel_pinout.h"
 
 static const char* TAG = "NNET";
 static WiFiManager wm;
@@ -69,8 +70,7 @@ bool enter_nconfig() {
   ulong c_timer = millis();
   bool s_blink = true;
 
-  //TODO: Modificar pines para que no sean constantes
-  ButtonHold button(5, 5000);
+  ButtonHold button(pin_bconfig, 3000);
   button.begin();
 
   for (;;) {
