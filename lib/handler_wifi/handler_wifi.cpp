@@ -27,7 +27,7 @@ void init_thr_wifi() {
   WiFi.begin(cnfg.get_ssid(), cnfg.get_pass());
 
   ulong cnt_timeout = millis();
-  ulong tick_timeout = 5000u;
+  ulong tick_timeout = 10000u;
 
   uint8_t wlst = WL_DISCONNECTED;
   while (wlst != WL_CONNECTED) {
@@ -55,7 +55,7 @@ void thread_wifi(void* parametres) {
       //> Try reconect
       ESP_LOGE(TAG, "Wifi disconnected. Try reconect");
       ulong ticker = millis();
-      ulong timeout = 10000u;
+      ulong timeout = 20000u;
 
       while (millis() - ticker <= timeout) {
         current_wl_status = WiFi.status();

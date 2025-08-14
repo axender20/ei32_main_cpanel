@@ -32,6 +32,7 @@ bool Config::update_parametres(const char* _ssid, const char* _pass) {
 //* Main config definitions */
 #include "EEPROM.h"
 #include "Arduino.h"
+#include "alarms.h"
 
 static const char* TAG = "CFG";
 
@@ -46,6 +47,7 @@ static const uint8_t validation_byte = 0x3E;
 enum map_memory : uint8_t {
   xmp_validation = 0,
   xmp_enter_nc = 1,
+  xmp_alarms = 2,
   xmp_ssid = 10,
   xmp_pass = 110,
 };
@@ -59,6 +61,7 @@ void load_config() {
     //? Error re-escribir informacion inicial.
     EEPROM.writeByte(xmp_validation, validation_byte);
     EEPROM.writeByte(xmp_enter_nc, 0);
+    EEPROM.writeByte(xmp_alarms, 0);
     EEPROM.writeString(xmp_ssid, String(default_ssid));
     EEPROM.writeString(xmp_pass, String(default_pass));
     EEPROM.commit();
@@ -87,8 +90,9 @@ void load_config() {
 
   String i_pass = EEPROM.readString(xmp_pass);
   String i_ssid = EEPROM.readString(xmp_ssid);
-
+  uint8_t i_alarms = EEPROM.readByte(xmp_alarms);
   cnfg.update_parametres(i_ssid.c_str(), i_pass.c_str());
+  set_u8_alarms(i_alarms);
   ESP_LOGI(TAG, "Configuration loaded successfully");
   EEPROM.end();
 }

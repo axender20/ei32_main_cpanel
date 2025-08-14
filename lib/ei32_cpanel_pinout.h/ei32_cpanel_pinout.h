@@ -6,4 +6,6 @@
 
 constexpr uint8_t pin_bconfig = 5u;
 
+constexpr uint8_t pin_sda = 42u;
+constexpr uint8_t pin_scl = 41u;
 #endif
