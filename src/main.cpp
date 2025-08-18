@@ -5,6 +5,7 @@
 #include "handler_wifi.h"
 #include "handler_nconfig.h"
 #include "handler_realtime.h"
+#include "handler_mute.h"
 
 #include "rgb_led.h"
 #include "button_hold.h"
@@ -16,18 +17,23 @@ static const char* TAG = "main";
 void setup() {
   delay(1000);
   ESP_LOGI(TAG, "Init code");
+
+  //> Init hardware peripherals
   outs::init();
   init_rgb_strip(200);
+
+  //> Load config
   load_config();
 
-
+  //> Make functionallity
   init_thr_wifi();
   xTaskCreate(thread_wifi, "tsk_w", 8192, NULL, 1, NULL);
 
   xTaskCreate(thread_nconfig, "tsk_nc", 2048, NULL, 1, NULL);
 
-  init_thr_realtime();
   xTaskCreate(thread_realtime, "tsk_rl", 8192, NULL, 1, NULL);
+
+  xTaskCreate(thread_mute, "tsk_m", 2048, NULL, 1, NULL);
 }
 
 void loop() {

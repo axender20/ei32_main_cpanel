@@ -2,74 +2,78 @@
 #include "nmspc_out.h"
 #include "EEPROM.h"
 
-bool enable_audible_alarm = true;
+#define DISABLE_AUDIBLE_ALARM 
 
-// Empaqueta 6 bools en un uint8_t (alarms[0] -> bit 0, alarms[5] -> bit 5)
+#ifdef DISABLE_AUDIBLE_ALARM
+bool ee_audible_alarm = false;
+#else 
+bool ee_audible_alarm = true;
+#endif
+
+
+const uint8_t audible_alarm_bit = 3;
+const uint8_t pinout_bits[6] = { 6, 5, 4, 0, 1, 2 };
+
+// Empaqueta 6 bools en un uint8_t (alarms[0] -> bit 0 (LSB), alarms[5] -> bit 5)
 uint8_t pack_alarms(const bool alarms[6]) {
+  if (!alarms) return 0;
   uint8_t b = 0;
   for (uint8_t i = 0; i < 6; ++i) {
-    if (alarms[i]) {
-      b |= (1 << i);
-    }
+    uint8_t bit = (static_cast<uint8_t>(alarms[i]) & 0x01u);
+    b |= (bit << i);
   }
-  return b & 0x3F; // asegurar que solo 6 bits estén usados
+  return b & 0x3Fu;
 }
 
-// Desempaqueta uint8_t en bool[6]
+// Desempaqueta uint8_t en bool[6] (bit 0 -> out[0], bit 5 -> out[5])
 void unpack_alarms(uint8_t b, bool out[6]) {
-  b &= 0x3F; // solo 6 bits relevantes
+  if (!out) return;
+  b &= 0x3Fu;
   for (uint8_t i = 0; i < 6; ++i) {
-    out[i] = ((b >> i) & 0x01) != 0;
+    out[i] = ((b >> i) & 0x01u) != 0;
   }
 }
-
 void set_alarms(bool alarms[6]) {
-  // Empaquetar los 6 bools
-  uint8_t byte = pack_alarms(alarms);
+  uint8_t erw_byte = pack_alarms(alarms);
 
-  // Aplicar salidas y calcular audible
   bool audible_alarm = false;
   for (uint8_t i = 0; i < 6; ++i) {
-    outs::set_state(i, alarms[i]);
+    outs::set_state(pinout_bits[i], alarms[i]);
     audible_alarm |= alarms[i];
   }
 
-  // Salida audible (reset cuando no hay alarma)
-  if (enable_audible_alarm && audible_alarm) {
-    outs::set_state(6, true);
+  if (ee_audible_alarm && audible_alarm) {
+    outs::set_state(audible_alarm_bit, true);
   }
   else {
-    outs::set_state(6, false);
+    outs::set_state(audible_alarm_bit, false);
   }
 
   //TODO: Codigo muy basura. *mejorar*
   //******** */
   EEPROM.begin(255);
-  EEPROM.writeByte(2, byte);
+  EEPROM.writeByte(2, erw_byte);
   EEPROM.commit();
   EEPROM.end();
   //******** */
 }
 
 void set_u8_alarms(uint8_t alarms) {
-  // Aceptar solo 6 bits (0..63). Si viene >63, lo mascaramos a 0..63
-  alarms &= 0x3F;
-
   bool data[6];
   bool audible_alarm = false;
 
-  // Desempaquetar y aplicar salidas
-  for (uint8_t i = 0; i < 6; ++i) {
-    data[i] = ((alarms >> i) & 0x01) != 0;
+  unpack_alarms(alarms, data);
+
+  for (uint8_t i = 0; i < 6; i++) {
     audible_alarm |= data[i];
-    outs::set_state(i, data[i]);
+    outs::set_state(pinout_bits[i], data[i]);
   }
 
-  if (enable_audible_alarm && audible_alarm) {
-    outs::set_state(6, true);
+  if (ee_audible_alarm && audible_alarm) {
+    outs::set_state(audible_alarm_bit, true);
   }
   else {
-    outs::set_state(6, false);
+    outs::set_state(audible_alarm_bit, false);
   }
 }
 

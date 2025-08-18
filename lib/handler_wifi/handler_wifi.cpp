@@ -7,7 +7,22 @@
 #include "main_config.h"
 #include "rgb_led.h"
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_log.h>
+
 static const char* TAG = "WIFI";
+
+// ---------- CONSTANTES (ajusta si lo necesitas) ----------
+constexpr unsigned long INITIAL_CONNECT_TIMEOUT_MS      = 10000UL; // timeout inicial en init_thr_wifi
+constexpr unsigned long RECONNECT_CYCLE_TIMEOUT_MS      = 30000UL; // máximo por ciclo de reconexión en thread_wifi
+constexpr unsigned long BACKOFF_INITIAL_MS              = 200UL;   // backoff inicial entre intentos
+constexpr unsigned long BACKOFF_MAX_MS                  = 5000UL;  // backoff tope
+constexpr unsigned int  MAX_RETRIES_BEFORE_FORCE_BEGIN  = 6U;      // tras estos intentos forzamos WiFi.begin()
+constexpr unsigned long PAUSE_AFTER_FAILURE_MS          = 10000UL; // espera entre ciclos si no se pudo conectar
+constexpr unsigned long CONNECTED_POLL_MS               = 2000UL;  // polling cuando está conectado
+constexpr unsigned long DISCONNECTED_SLICE_MS           = 100UL;   // slice para esperar dentro del backoff
+constexpr unsigned long TASK_LOOP_DELAY_MS              = 50UL;    // delay mínimo por iteración
 
 //* WI-FI Status */
 static uint8_t current_wl_status;
@@ -26,8 +41,8 @@ void init_thr_wifi() {
   ESP_LOGI(TAG, "Try connect to: %s", cnfg.get_ssid());
   WiFi.begin(cnfg.get_ssid(), cnfg.get_pass());
 
-  ulong cnt_timeout = millis();
-  ulong tick_timeout = 10000u;
+  unsigned long cnt_timeout = millis();
+  unsigned long tick_timeout = INITIAL_CONNECT_TIMEOUT_MS;
 
   uint8_t wlst = WL_DISCONNECTED;
   while (wlst != WL_CONNECTED) {
@@ -42,34 +57,121 @@ void init_thr_wifi() {
   ESP_LOGI(TAG, "%s", str_wls);
   current_wl_status = wlst;
 
-  if (wlst == WL_CONNECTED) wrgb_1.switch_color(0, 255, 0);
-  else wrgb_1.switch_color(255, 0, 0);
+  if (wlst == WL_CONNECTED) {
+    wrgb_1.switch_color(0, 255, 0);
+  } else {
+    wrgb_1.switch_color(255, 0, 0);
+  }
   delay(200);
   wrgb_1.off();
 }
 
+/*
+ * Tarea que mantiene la conexión WiFi
+ * - Conserva la estructura while(true) que tenías
+ * - Mejora: exponential backoff, forzar WiFi.begin() si reconnect falla repetidamente,
+ *   evita busy-loop con vTaskDelay, logs más descriptivos y actualización del LED.
+ */
 void thread_wifi(void* parametres) {
-  while (true) {
-    current_wl_status = WiFi.status();
-    if (current_wl_status != WL_CONNECTED) {
-      //> Try reconect
-      ESP_LOGE(TAG, "Wifi disconnected. Try reconect");
-      ulong ticker = millis();
-      ulong timeout = 20000u;
+  (void)parametres; // no usamos parámetros, conservando la firma original
 
-      while (millis() - ticker <= timeout) {
-        current_wl_status = WiFi.status();
-        if (current_wl_status == WL_CONNECTED) {
+  for (;;) {
+    current_wl_status = WiFi.status();
+
+    if (current_wl_status != WL_CONNECTED) {
+      ESP_LOGE(TAG, "WiFi disconnected (status=%d). Starting reconnect procedure...", (int)current_wl_status);
+
+      unsigned long cycle_start = millis();
+      unsigned long backoff = BACKOFF_INITIAL_MS;
+      unsigned int attempts = 0;
+      bool connected = false;
+
+      while ( (millis() - cycle_start) < RECONNECT_CYCLE_TIMEOUT_MS ) {
+        ++attempts;
+        ESP_LOGI(TAG, "Reconnect attempt %u (elapsed %lu ms)", attempts, (millis() - cycle_start));
+
+        // Intento rápido de reconexión (si la pila lo permite)
+        WiFi.reconnect();
+
+        // Esperamos el periodo de backoff, pero en slices para revisar estado y timeout
+        unsigned long waited = 0;
+        while (waited < backoff && (millis() - cycle_start) < RECONNECT_CYCLE_TIMEOUT_MS) {
+          current_wl_status = WiFi.status();
+          if (current_wl_status == WL_CONNECTED) {
+            connected = true;
+            break;
+          }
+          vTaskDelay(pdMS_TO_TICKS(DISCONNECTED_SLICE_MS));
+          waited += DISCONNECTED_SLICE_MS;
+        }
+
+        if (connected || WiFi.status() == WL_CONNECTED) {
+          current_wl_status = WL_CONNECTED;
+          ESP_LOGI(TAG, "WiFi reconnected after %u attempts (elapsed %lu ms)", attempts, (millis() - cycle_start));
+          // Indicar con LED
+          wrgb_1.switch_color(0, 255, 0);
+          delay(100);
+          wrgb_1.off();
           break;
         }
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+
+        // Si llevamos varios intentos, forzamos un begin (puede ayudar si la stack perdió estado)
+        if (attempts % MAX_RETRIES_BEFORE_FORCE_BEGIN == 0) {
+          ESP_LOGW(TAG, "Forcing WiFi.begin() after %u failed reconnect attempts", attempts);
+          WiFi.begin(cnfg.get_ssid(), cnfg.get_pass());
+        }
+
+        // Exponential backoff con tope
+        backoff = backoff * 2;
+        if (backoff > BACKOFF_MAX_MS) backoff = BACKOFF_MAX_MS;
+      } // while timeout
+
+      // Evaluar resultado del ciclo
+      current_wl_status = WiFi.status();
+      if (current_wl_status == WL_CONNECTED) {
+        ESP_LOGI(TAG, "Connected at end of reconnect cycle. IP: %s", WiFi.localIP().toString().c_str());
+        wrgb_1.switch_color(0, 255, 0);
+        delay(100);
+        wrgb_1.off();
+      } else {
+        ESP_LOGE(TAG, "Could not connect within %lu ms. Will wait %lu ms before next cycle.", RECONNECT_CYCLE_TIMEOUT_MS, PAUSE_AFTER_FAILURE_MS);
+        // Indicar fallo con LED
+        wrgb_1.switch_color(255, 0, 0);
+        delay(100);
+        wrgb_1.off();
+
+        // Espera más larga antes de volver a intentar para no saturar AP/CPU
+        unsigned long slept = 0;
+        while (slept < PAUSE_AFTER_FAILURE_MS) {
+          vTaskDelay(pdMS_TO_TICKS(200));
+          slept += 200;
+        }
       }
-      const char* str_wls = (current_wl_status == WL_CONNECTED) ? "Re:connected correctly" : "Could not connect";
-      ESP_LOGI(TAG, "%s", str_wls);
+    } else {
+      // Estamos conectados: reportar una sola vez y descansar más tiempo
+      static bool reported_connected = false;
+      if (!reported_connected) {
+        ESP_LOGI(TAG, "WiFi connected (SSID: %s, IP: %s)", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+        // Mostrar brevemente LED verde
+        wrgb_1.switch_color(0, 255, 0);
+        delay(80);
+        wrgb_1.off();
+        reported_connected = true;
+      }
+
+      // Dormir un tiempo razonable mientras estamos conectados
+      vTaskDelay(pdMS_TO_TICKS(CONNECTED_POLL_MS));
+
+      // Si se perdió la conexión, reiniciamos el flag para volver a reportar
+      if (WiFi.status() != WL_CONNECTED) {
+        reported_connected = false;
+      }
     }
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+    // pequeña pausa general para evitar busy-loop intenso en estados intermedios
+    vTaskDelay(pdMS_TO_TICKS(TASK_LOOP_DELAY_MS));
   }
+
+  // nunca debería llegar aquí, pero por limpieza:
   vTaskDelete(NULL);
 }
-
-

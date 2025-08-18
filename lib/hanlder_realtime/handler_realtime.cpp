@@ -67,11 +67,12 @@ static void task_realtime() {
   static bool config = false;
   if (get_wifi_status() == WL_CONNECTED) {
     if (!config) {
+      vTaskDelay(pdMS_TO_TICKS(200));
       ESP_LOGI(TAG, "Connected. Initializing...");
       // Configurar (no tocar WiFi aquí)
       supa.init(supabaseURL, apikey, true, 443);
       supa.setChangeCallback(onChange);
-      supa.setLogLevel(SupabaseRealtimeClient::LogLevel::LOG_DEBUG);
+      supa.setLogLevel(SupabaseRealtimeClient::LogLevel::LOG_NONE);
       // Iniciar websocket (llamar sólo después de que la red ya esté conectada)
       supa.begin();
       config = true;
