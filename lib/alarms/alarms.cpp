@@ -2,8 +2,6 @@
 #include "nmspc_out.h"
 #include "EEPROM.h"
 
-#define DISABLE_AUDIBLE_ALARM 
-
 #ifdef DISABLE_AUDIBLE_ALARM
 bool ee_audible_alarm = false;
 #else 

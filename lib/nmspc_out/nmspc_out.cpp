@@ -40,9 +40,6 @@ void outs::init() {
 
   for (uint8_t i = 0; i < 8; i++) {
     ioex.pinMode(i, OUTPUT);
-  }
-
-  for (uint8_t i = 0; i < 8; i++) {
     ioex.digitalWrite(i, false);
   }
 }

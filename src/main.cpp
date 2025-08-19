@@ -6,6 +6,7 @@
 #include "handler_nconfig.h"
 #include "handler_realtime.h"
 #include "handler_mute.h"
+#include "handler_status.h"
 
 #include "rgb_led.h"
 #include "button_hold.h"
@@ -34,6 +35,8 @@ void setup() {
   xTaskCreate(thread_realtime, "tsk_rl", 8192, NULL, 1, NULL);
 
   xTaskCreate(thread_mute, "tsk_m", 2048, NULL, 1, NULL);
+
+  xTaskCreate(thread_status, "tsk_st", 2048, NULL, 1, NULL);
 }
 
 void loop() {
