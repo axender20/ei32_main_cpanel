@@ -3,5 +3,4 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
-ota/output/firmware.bin
-ota/output/firmware.sig
+/ota/output/*
