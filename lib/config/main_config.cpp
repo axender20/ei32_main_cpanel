@@ -110,6 +110,7 @@ void update_config(Config _cfg) {
 
   EEPROM.writeByte(xmp_validation, validation_byte);
   EEPROM.writeByte(xmp_enter_nc, 0);
+  EEPROM.writeByte(xmp_alarms, 0);
   EEPROM.writeString(xmp_ssid, String(_cfg.get_ssid()));
   EEPROM.writeString(xmp_pass, String(_cfg.get_pass()));
   EEPROM.commit();
