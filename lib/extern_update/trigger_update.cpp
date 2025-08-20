@@ -29,7 +29,11 @@ bool hasInternet() {
   return code == 200 || code == 204;
 }
 
-uint8_t try_update_controller() {
+void pre_init_update() {
+  //> Do things prev update
+}
+
+uint8_t update_controller() {
   ESP_LOGI(TAG, "Init update");
 
   uint8_t cwl_status = get_wifi_status();
@@ -142,12 +146,34 @@ uint8_t try_update_controller() {
   free(sigBuf);
 
   ESP_LOGI(TAG, "OTA Update complete. Restarting...");
-  vTaskDelay(1000 / portMAX_DELAY);
+  delay(1000);
   ESP.restart();
 
   return OTA_UPDATE_OK;
 }
 
-uint8_t new_update() {
-  return 0;
+void try_update_controller() {
+  delay(2000);
+  const uint8_t max_retries = 5;
+  for (uint8_t attempt = 0; attempt < max_retries; ++attempt) {
+    uint8_t human_attempt = attempt + 1;
+    ESP_LOGI(TAG, "OTA: try %u off %u\n", human_attempt, (uint16_t)(max_retries + 1));
+
+    uint8_t result = update_controller();
+
+    if (result == OTA_UPDATE_OK) {
+      Serial.println("OTA: Done. Restart...");
+      delay(1000);
+      ESP.restart();
+    }
+
+    const uint32_t delay_ms = 1000u;
+    if (attempt < max_retries) {
+      Serial.printf("OTA: failure. Reintentando en %lums...\n", (unsigned long)delay_ms);
+      delay(delay_ms);
+    }
+    else {
+      Serial.printf("OTA: failure :,( ...");
+    }
+  }
 }

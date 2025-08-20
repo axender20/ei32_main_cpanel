@@ -12,12 +12,13 @@
 #include "button_hold.h"
 #include "nmspc_out.h"
 
+#define RELEASE_DATE __DATE__ " " __TIME__
 static const char* TAG = "main";
 
-#include "EEPROM.h"
 void setup() {
   delay(1000);
-  ESP_LOGI(TAG, "Init code");
+  const char* release_data = RELEASE_DATE;
+  ESP_LOGI(TAG, "Init code. Released: %s", release_data);
 
   //> Init hardware peripherals
   outs::init();

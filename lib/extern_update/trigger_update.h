@@ -21,5 +21,5 @@ typedef enum {
   OTA_UPDATE_FAIL_OTA_END = 13,
 } ota_update_result_t;
 
-uint8_t try_update_controller();
+void try_update_controller();
 #endif

@@ -7,6 +7,7 @@
 #include "realtime_status.h"
 #include "utilities_realtime.h"
 #include "alarms.h"
+#include "trigger_update.h"
 
 static const char* TAG = "RLTM";
 
@@ -52,7 +53,8 @@ void onChange(const SupabaseRealtimeClient::Change& ch) {
   bool enable_updates = false;
 
   if (ch.message.equals("EI32_UPDATE")) {
-    ESP_LOGI(TAG, "Request update. Initializing...");
+    ESP_LOGI(TAG, "Request update. Initializing...");  
+    try_update_controller();
   }
   else {
     //? Revisar si tiene el formato normal
