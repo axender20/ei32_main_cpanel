@@ -6,15 +6,8 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 
-/*
-  SupabaseRealtimeClient.h
-  Versión con ArduinoJson parsing y logging detallado.
-  Corregida para evitar warnings deprecación en ArduinoJson v7.
-*/
-
 class SupabaseRealtimeClient {
 public:
-  // Ajusta esto si quieres (ya no es la capacidad obligatoria como en v6)
   static constexpr size_t JSON_DOC_SIZE = 4096;
 
   enum State {
