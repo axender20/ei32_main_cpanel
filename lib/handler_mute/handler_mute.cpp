@@ -1,5 +1,3 @@
-#define CORE_DEBUG_LEVEL ARDUHAL_LOG_LEVEL_INFO
-
 #include "Arduino.h"
 #include "handler_mute.h"
 #include "button_hold.h"

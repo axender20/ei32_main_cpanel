@@ -1,4 +1,9 @@
+#ifdef MAIN_APP_LOG_LEVEL 
+#define CORE_DEBUG_LEVEL MAIN_APP_LOG_LEVEL
+#else
 #define CORE_DEBUG_LEVEL ARDUHAL_LOG_LEVEL_INFO
+#endif
+
 #include "main_config.h"
 #include "new_network_config.h"
 
