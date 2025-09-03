@@ -28,6 +28,32 @@ constexpr unsigned long CONNECTED_POLL_MS               = 2000UL;  // polling cu
 constexpr unsigned long DISCONNECTED_SLICE_MS           = 100UL;   // slice para esperar dentro del backoff
 constexpr unsigned long TASK_LOOP_DELAY_MS              = 50UL;    // delay mínimo por iteración
 
+//> Macro to use static network
+
+// #define USE_STATIC_NETWORK
+
+#ifdef USE_STATIC_NETWORK
+static IPAddress stc_ip(192, 168, 4, 1);
+static IPAddress stc_gw(192, 168, 1, 1);
+static IPAddress stc_sn(192, 168, 1, 1);
+
+static IPAddress stc_dns0(192, 168, 4, 1);
+static IPAddress stc_dns1(192, 168, 1, 1);
+
+static void apply_static_network_config() {
+  bool cfg_ok = WiFi.config(stc_ip, stc_gw, stc_gw, stc_dns0, stc_dns1);
+  if (!cfg_ok) {
+    ESP_LOGW(TAG, "Cant use IP Static");
+  }
+  ESP_LOGI(TAG, "Static net applied: IP=%s GW=%s SN=%s DNS0=%s DNS1=%s",
+    ip.toString().c_str(),
+    gw.toString().c_str(),
+    sn.toString().c_str(),
+    dns0.toString().c_str(),
+    dns1.toString().c_str());
+}
+#endif // USE_STATIC_NETWORK
+
 //* WI-FI Status */
 static uint8_t current_wl_status;
 uint8_t get_wifi_status() {
@@ -43,6 +69,11 @@ void init_thr_wifi() {
 
   //! Try first connection
   ESP_LOGI(TAG, "Try connect to: %s", cnfg.get_ssid());
+
+  #ifdef USE_STATIC_NETWORK
+    apply_static_network_config();
+  #endif
+
   WiFi.begin(cnfg.get_ssid(), cnfg.get_pass());
 
   unsigned long cnt_timeout = millis();
@@ -122,6 +153,11 @@ void thread_wifi(void* parametres) {
         // Si llevamos varios intentos, forzamos un begin (puede ayudar si la stack perdió estado)
         if (attempts % MAX_RETRIES_BEFORE_FORCE_BEGIN == 0) {
           ESP_LOGW(TAG, "Forcing WiFi.begin() after %u failed reconnect attempts", attempts);
+          
+          #ifdef USE_STATIC_NETWORK
+          apply_static_network_config();
+          #endif
+          
           WiFi.begin(cnfg.get_ssid(), cnfg.get_pass());
         }
 
